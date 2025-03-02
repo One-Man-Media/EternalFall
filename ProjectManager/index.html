@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Eternal Fall Project Plan</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="header">
+        <h1>Eternal Fall Project Plan</h1>
+        <button onclick="showAddPhaseForm()">Add New Phase</button>
+        <button onclick="showAddTaskForm()">Add Task to Phase</button>
+    </div>
+
+    <div id="add-phase-form" style="display: none;">
+        <h2>Add New Phase</h2>
+        <input type="text" id="new-phase-name" placeholder="Phase Name">
+        <textarea id="new-phase-description" placeholder="Phase Description"></textarea>
+        <button onclick="addPhase()">Add Phase</button>
+    </div>
+
+    <div id="add-task-form" style="display: none;">
+        <h2>Add Task to Phase</h2>
+        <input type="text" id="new-task-name" placeholder="Task Name">
+        <textarea id="new-task-description" placeholder="Task Description"></textarea>
+        <input type="number" id="new-task-difficulty" placeholder="Difficulty (1-5)">
+        <input type="number" id="new-task-duration" placeholder="Estimated Time (hours)">
+        <select id="new-task-phase"></select>
+        <button onclick="addTask()">Add Task</button>
+    </div>
+
+    <table id="project-table">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Difficulty</th>
+                <th>Estimated Time</th>
+                <th>Phase</th>
+                <th>Progress</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div>
+        <h2>Delete Item</h2>
+        <select id="delete-item-select"></select>
+        <button onclick="deleteItem()">Delete Selected</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
