@@ -1,151 +1,186 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>RPG Project Plan</title>
+    <title>Eternal Fall Project Plan</title>
     <style>
         body { font-family: sans-serif; }
-        .phase { border: 1px solid #ccc; margin: 10px; padding: 10px; }
-        .task { border-bottom: 1px solid #eee; padding: 5px; }
-        .status-not-started { color: gray; }
-        .status-in-progress { color: orange; }
-        .status-completed { color: green; }
-        .edit-mode { border: 1px dashed blue; }
+        #header { text-align: center; margin-bottom: 20px; }
+        #add-phase-form, #add-task-form { margin: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .status-dropdown { position: relative; display: inline-block; }
+        .status-dropdown-content { display: none; position: absolute; background-color: #f9f9f9; min-width: 160px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 1; }
+        .status-dropdown-content a { color: black; padding: 12px 16px; text-decoration: none; display: block; }
+        .status-dropdown-content a:hover { background-color: #f1f1f1; }
+        .status-dropdown:hover .status-dropdown-content { display: block; }
     </style>
 </head>
 <body>
-    <h1>RPG Project Plan</h1>
-    <div id="phases"></div>
-    <button onclick="addPhase()">Add Phase</button>
-    <script>
-        let phasesData = JSON.parse(localStorage.getItem('rpgProjectData')) || [];
-        let phaseCounter = phasesData.length;
-        const phases = document.getElementById('phases');
+    <div id="header">
+        <h1>Eternal Fall Project Plan</h1>
+        <button onclick="showAddPhaseForm()">Add New Phase</button>
+        <button onclick="showAddTaskForm()">Add Task to Phase</button>
+    </div>
 
-        function renderPhases() {
-            phases.innerHTML = '';
-            phasesData.forEach((phase, phaseIndex) => {
-                const phaseDiv = document.createElement('div');
-                phaseDiv.className = 'phase';
-                phaseDiv.id = `phase-${phaseIndex + 1}`;
-                phaseDiv.innerHTML = `
-                    <h2>
-                        <span id="phase-name-display-${phaseIndex + 1}">${phase.name}</span>
-                        <input type="text" id="phase-name-edit-${phaseIndex + 1}" value="${phase.name}" style="display: none;">
-                        <button onclick="editPhaseName(${phaseIndex + 1})">Edit</button>
-                        <button onclick="deletePhase(${phaseIndex + 1})">Delete</button>
-                    </h2>
-                    <button onclick="addTask(${phaseIndex + 1})">Add Task</button>
-                    <div id="tasks-${phaseIndex + 1}"></div>
-                    <div id="phase-status-${phaseIndex + 1}">Status: ${phase.status}, Completion: ${phase.completion}%</div>
-                `;
-                phases.appendChild(phaseDiv);
-                renderTasks(phaseIndex + 1, phase.tasks);
-            });
+    <div id="add-phase-form" style="display: none;">
+        <h2>Add New Phase</h2>
+        <input type="text" id="new-phase-name" placeholder="Phase Name">
+        <textarea id="new-phase-description" placeholder="Phase Description"></textarea>
+        <button onclick="addPhase()">Add Phase</button>
+    </div>
+
+    <div id="add-task-form" style="display: none;">
+        <h2>Add Task to Phase</h2>
+        <input type="text" id="new-task-name" placeholder="Task Name">
+        <textarea id="new-task-description" placeholder="Task Description"></textarea>
+        <input type="number" id="new-task-difficulty" placeholder="Difficulty (1-5)">
+        <input type="number" id="new-task-duration" placeholder="Estimated Time (hours)">
+        <select id="new-task-phase"></select>
+        <button onclick="addTask()">Add Task</button>
+    </div>
+
+    <table id="project-table">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Difficulty</th>
+                <th>Estimated Time</th>
+                <th>Phase</th>
+                <th>Progress</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div>
+        <h2>Delete Item</h2>
+        <select id="delete-item-select"></select>
+        <button onclick="deleteItem()">Delete Selected</button>
+    </div>
+
+    <script>
+        let projectData = JSON.parse(localStorage.getItem('eternalFallData')) || { phases: [], tasks: [] };
+
+        function saveData() {
+            localStorage.setItem('eternalFallData', JSON.stringify(projectData));
         }
 
-        function renderTasks(phaseId, tasks) {
-            const taskContainer = document.getElementById(`tasks-${phaseId}`);
-            taskContainer.innerHTML = '';
-            tasks.forEach((task, taskIndex) => {
-                const taskDiv = document.createElement('div');
-                taskDiv.className = 'task';
-                taskDiv.id = `task-${phaseId}-${taskIndex + 1}`;
-                taskDiv.innerHTML = `
-                    <span id="task-name-display-${phaseId}-${taskIndex + 1}">${task.name}</span>
-                    <input type="text" id="task-name-edit-${phaseId}-${taskIndex + 1}" value="${task.name}" style="display: none;">
-                    <select id="task-status-${phaseId}-${taskIndex + 1}">
-                        <option value="not-started" ${task.status === 'not-started' ? 'selected' : ''}>Not Started</option>
-                        <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
-                        <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
-                    </select>
-                    <input type="number" id="task-difficulty-${phaseId}-${taskIndex + 1}" placeholder="Difficulty (1-5)" value="${task.difficulty}">
-                    <input type="number" id="task-duration-${phaseId}-${taskIndex + 1}" placeholder="Duration (hours)" value="${task.duration}">
-                    <button onclick="editTaskName(${phaseId}, ${taskIndex + 1})">Edit</button>
-                    <button onclick="deleteTask(${phaseId}, ${taskIndex + 1})">Delete</button>
-                `;
-                taskContainer.appendChild(taskDiv);
+        function renderTable() {
+            const tableBody = document.querySelector('#project-table tbody');
+            tableBody.innerHTML = '';
+            document.getElementById('delete-item-select').innerHTML = ''; //clear delete selection.
+            document.getElementById('new-task-phase').innerHTML = ""; //clear task phase selection.
+
+            // Render phases
+            projectData.phases.forEach((phase, index) => {
+                const row = tableBody.insertRow();
+                row.insertCell().textContent = 'Phase';
+                row.insertCell().textContent = phase.name;
+                row.insertCell().textContent = phase.description;
+                row.insertCell().textContent = '-';
+                row.insertCell().textContent = '-';
+                row.insertCell().textContent = '-';
+                row.insertCell().innerHTML = createStatusDropdown(index, null, 'phase');
+
+                const option = document.createElement("option");
+                option.text = phase.name;
+                option.value = index;
+                document.getElementById('new-task-phase').add(option);
+
+                const deleteOption = document.createElement("option");
+                deleteOption.text = "Phase: " + phase.name;
+                deleteOption.value = "phase-" + index;
+                document.getElementById("delete-item-select").add(deleteOption);
             });
+
+            // Render tasks
+            projectData.tasks.forEach((task, index) => {
+                const row = tableBody.insertRow();
+                row.insertCell().textContent = 'Task';
+                row.insertCell().textContent = task.name;
+                row.insertCell().textContent = task.description;
+                row.insertCell().textContent = task.difficulty;
+                row.insertCell().textContent = task.duration;
+                row.insertCell().textContent = projectData.phases[task.phaseIndex].name;
+                row.insertCell().innerHTML = createStatusDropdown(task.phaseIndex, index, 'task');
+
+                const deleteOption = document.createElement("option");
+                deleteOption.text = "Task: " + task.name;
+                deleteOption.value = "task-" + index;
+                document.getElementById("delete-item-select").add(deleteOption);
+            });
+
+            updatePhaseCompletion();
+        }
+
+        function createStatusDropdown(phaseIndex, taskIndex, type) {
+            let status = type === 'phase' ? projectData.phases[phaseIndex].status || 'Not Started' : projectData.tasks[taskIndex].status || 'Not Started';
+            let dropdown = `
+                <div class="status-dropdown">
+                    <span>${status}</span>
+                    <div class="status-dropdown-content">
+                        <a href="#" onclick="updateStatus('${phaseIndex}', '${taskIndex}', '${type}', 'Not Started')">Not Started</a>
+                        <a href="#" onclick="updateStatus('${phaseIndex}', '${taskIndex}', '${type}', 'In Progress')">In Progress</a>
+                        <a href="#" onclick="updateStatus('${phaseIndex}', '${taskIndex}', '${type}', 'Completed')">Completed</a>
+                    </div>
+                </div>
+            `;
+            return dropdown;
+        }
+
+        function updateStatus(phaseIndex, taskIndex, type, newStatus) {
+            if (type === 'phase') {
+                projectData.phases[phaseIndex].status = newStatus;
+            } else {
+                projectData.tasks[taskIndex].status = newStatus;
+            }
+            saveData();
+            renderTable();
+        }
+
+        function updatePhaseCompletion() {
+            projectData.phases.forEach((phase, phaseIndex) => {
+                let completedTasks = projectData.tasks.filter(task => task.phaseIndex === phaseIndex && task.status === 'Completed').length;
+                let totalTasks = projectData.tasks.filter(task => task.phaseIndex === phaseIndex).length;
+                phase.completion = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+            });
+            saveData();
+            renderTable();
+        }
+
+        function showAddPhaseForm() {
+            document.getElementById('add-phase-form').style.display = 'block';
+            document.getElementById('add-task-form').style.display = 'none';
+        }
+
+        function showAddTaskForm() {
+            document.getElementById('add-task-form').style.display = 'block';
+            document.getElementById('add-phase-form').style.display = 'none';
         }
 
         function addPhase() {
-            phaseCounter++;
-            phasesData.push({
-                name: `Phase ${phaseCounter}`,
-                tasks: [],
-                status: 'Not Started',
-                completion: 0
+            projectData.phases.push({
+                name: document.getElementById('new-phase-name').value,
+                description: document.getElementById('new-phase-description').value,
+                status: 'Not Started'
             });
+            document.getElementById('new-phase-name').value = '';
+            document.getElementById('new-phase-description').value = '';
+            document.getElementById('add-phase-form').style.display = 'none';
             saveData();
-            renderPhases();
+            renderTable();
         }
 
-        function addTask(phaseId) {
-            phasesData[phaseId - 1].tasks.push({
-                name: `Task ${phasesData[phaseId - 1].tasks.length + 1}`,
-                status: 'not-started',
-                difficulty: 1,
-                duration: 1
+        function addTask() {
+            projectData.tasks.push({
+                name: document.getElementById('new-task-name').value,
+                description: document.getElementById('new-task-description').value,
+                difficulty: document.getElementById('new-task-difficulty').value,
+                duration: document.getElementById('new-task-duration').value,
+                phaseIndex: parseInt(document.getElementById('new-task-phase').value),
+                status: 'Not Started'
             });
-            saveData();
-            renderPhases();
-        }
-
-        function editPhaseName(phaseId) {
-            const displayName = document.getElementById(`phase-name-display-${phaseId}`);
-            const editInput = document.getElementById(`phase-name-edit-${phaseId}`);
-            if (displayName.style.display === 'none') {
-                displayName.style.display = 'inline';
-                editInput.style.display = 'none';
-                phasesData[phaseId - 1].name = editInput.value;
-                saveData();
-                renderPhases();
-            } else {
-                displayName.style.display = 'none';
-                editInput.style.display = 'inline';
-                editInput.focus();
-            }
-        }
-
-        function editTaskName(phaseId, taskId) {
-            const displayName = document.getElementById(`task-name-display-${phaseId}-${taskId}`);
-            const editInput = document.getElementById(`task-name-edit-${phaseId}-${taskId}`);
-            if (displayName.style.display === 'none') {
-                displayName.style.display = 'inline';
-                editInput.style.display = 'none';
-                phasesData[phaseId - 1].tasks[taskId - 1].name = editInput.value;
-                saveData();
-                renderPhases();
-            } else {
-                displayName.style.display = 'none';
-                editInput.style.display = 'inline';
-                editInput.focus();
-            }
-        }
-
-        function deleteTask(phaseId, taskId) {
-            phasesData[phaseId - 1].tasks.splice(taskId - 1, 1);
-            saveData();
-            renderPhases();
-        }
-
-        function deletePhase(phaseId) {
-            phasesData.splice(phaseId - 1, 1);
-            saveData();
-            renderPhases();
-        }
-
-        function updatePhaseStatus(phaseId) {
-            const tasks = phasesData[phaseId - 1].tasks;
-            let completedTasks = 0;
-            tasks.forEach(task => {
-                if (document.getElementById(`task-status-${phaseId}-${tasks.indexOf(task)+1}`).value === 'completed') {
-                    completedTasks++;
-                }
-            });
-            const completionPercentage = (tasks.length > 0) ? (completedTasks / tasks.length) * 100 : 0;
-            phasesData[phaseId - 1].completion = completionPercentage.toFixed(0);
-            let overallStatus = 'Not Started';
-            if (completionPercentage > 0 && completionPercentage < 100) {
-                overallStatus = 'In Progress';
-            } else if (completionPercentage === 100 && tasks.length > 0) {
-                overallStatus
+            document.getElementById('new-task-
