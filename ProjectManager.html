@@ -9,78 +9,143 @@
         .status-not-started { color: gray; }
         .status-in-progress { color: orange; }
         .status-completed { color: green; }
+        .edit-mode { border: 1px dashed blue; }
     </style>
 </head>
 <body>
     <h1>RPG Project Plan</h1>
     <div id="phases"></div>
-
+    <button onclick="addPhase()">Add Phase</button>
     <script>
+        let phasesData = JSON.parse(localStorage.getItem('rpgProjectData')) || [];
+        let phaseCounter = phasesData.length;
         const phases = document.getElementById('phases');
-        let phaseCounter = 0;
+
+        function renderPhases() {
+            phases.innerHTML = '';
+            phasesData.forEach((phase, phaseIndex) => {
+                const phaseDiv = document.createElement('div');
+                phaseDiv.className = 'phase';
+                phaseDiv.id = `phase-${phaseIndex + 1}`;
+                phaseDiv.innerHTML = `
+                    <h2>
+                        <span id="phase-name-display-${phaseIndex + 1}">${phase.name}</span>
+                        <input type="text" id="phase-name-edit-${phaseIndex + 1}" value="${phase.name}" style="display: none;">
+                        <button onclick="editPhaseName(${phaseIndex + 1})">Edit</button>
+                        <button onclick="deletePhase(${phaseIndex + 1})">Delete</button>
+                    </h2>
+                    <button onclick="addTask(${phaseIndex + 1})">Add Task</button>
+                    <div id="tasks-${phaseIndex + 1}"></div>
+                    <div id="phase-status-${phaseIndex + 1}">Status: ${phase.status}, Completion: ${phase.completion}%</div>
+                `;
+                phases.appendChild(phaseDiv);
+                renderTasks(phaseIndex + 1, phase.tasks);
+            });
+        }
+
+        function renderTasks(phaseId, tasks) {
+            const taskContainer = document.getElementById(`tasks-${phaseId}`);
+            taskContainer.innerHTML = '';
+            tasks.forEach((task, taskIndex) => {
+                const taskDiv = document.createElement('div');
+                taskDiv.className = 'task';
+                taskDiv.id = `task-${phaseId}-${taskIndex + 1}`;
+                taskDiv.innerHTML = `
+                    <span id="task-name-display-${phaseId}-${taskIndex + 1}">${task.name}</span>
+                    <input type="text" id="task-name-edit-${phaseId}-${taskIndex + 1}" value="${task.name}" style="display: none;">
+                    <select id="task-status-${phaseId}-${taskIndex + 1}">
+                        <option value="not-started" ${task.status === 'not-started' ? 'selected' : ''}>Not Started</option>
+                        <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                        <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
+                    </select>
+                    <input type="number" id="task-difficulty-${phaseId}-${taskIndex + 1}" placeholder="Difficulty (1-5)" value="${task.difficulty}">
+                    <input type="number" id="task-duration-${phaseId}-${taskIndex + 1}" placeholder="Duration (hours)" value="${task.duration}">
+                    <button onclick="editTaskName(${phaseId}, ${taskIndex + 1})">Edit</button>
+                    <button onclick="deleteTask(${phaseId}, ${taskIndex + 1})">Delete</button>
+                `;
+                taskContainer.appendChild(taskDiv);
+            });
+        }
 
         function addPhase() {
             phaseCounter++;
-            const phaseDiv = document.createElement('div');
-            phaseDiv.className = 'phase';
-            phaseDiv.id = `phase-${phaseCounter}`;
-            phaseDiv.innerHTML = `
-                <h2>Phase ${phaseCounter}</h2>
-                <input type="text" id="phase-name-${phaseCounter}" placeholder="Phase Name">
-                <button onclick="addTask(${phaseCounter})">Add Task</button>
-                <div id="tasks-${phaseCounter}"></div>
-                <div id="phase-status-${phaseCounter}">Status: Not Started, Completion: 0%</div>
-            `;
-            phases.appendChild(phaseDiv);
+            phasesData.push({
+                name: `Phase ${phaseCounter}`,
+                tasks: [],
+                status: 'Not Started',
+                completion: 0
+            });
+            saveData();
+            renderPhases();
         }
 
         function addTask(phaseId) {
-            const taskContainer = document.getElementById(`tasks-${phaseId}`);
-            const taskCounter = taskContainer.children.length + 1;
-            const taskDiv = document.createElement('div');
-            taskDiv.className = 'task';
-            taskDiv.id = `task-${phaseId}-${taskCounter}`;
-            taskDiv.innerHTML = `
-                <input type="text" id="task-name-${phaseId}-${taskCounter}" placeholder="Task Name">
-                <select id="task-status-${phaseId}-${taskCounter}">
-                    <option value="not-started">Not Started</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                </select>
-                <input type="number" id="task-difficulty-${phaseId}-${taskCounter}" placeholder="Difficulty (1-5)">
-                <input type="number" id="task-duration-${phaseId}-${taskCounter}" placeholder="Duration (hours)">
-            `;
-            taskContainer.appendChild(taskDiv);
+            phasesData[phaseId - 1].tasks.push({
+                name: `Task ${phasesData[phaseId - 1].tasks.length + 1}`,
+                status: 'not-started',
+                difficulty: 1,
+                duration: 1
+            });
+            saveData();
+            renderPhases();
+        }
+
+        function editPhaseName(phaseId) {
+            const displayName = document.getElementById(`phase-name-display-${phaseId}`);
+            const editInput = document.getElementById(`phase-name-edit-${phaseId}`);
+            if (displayName.style.display === 'none') {
+                displayName.style.display = 'inline';
+                editInput.style.display = 'none';
+                phasesData[phaseId - 1].name = editInput.value;
+                saveData();
+                renderPhases();
+            } else {
+                displayName.style.display = 'none';
+                editInput.style.display = 'inline';
+                editInput.focus();
+            }
+        }
+
+        function editTaskName(phaseId, taskId) {
+            const displayName = document.getElementById(`task-name-display-${phaseId}-${taskId}`);
+            const editInput = document.getElementById(`task-name-edit-${phaseId}-${taskId}`);
+            if (displayName.style.display === 'none') {
+                displayName.style.display = 'inline';
+                editInput.style.display = 'none';
+                phasesData[phaseId - 1].tasks[taskId - 1].name = editInput.value;
+                saveData();
+                renderPhases();
+            } else {
+                displayName.style.display = 'none';
+                editInput.style.display = 'inline';
+                editInput.focus();
+            }
+        }
+
+        function deleteTask(phaseId, taskId) {
+            phasesData[phaseId - 1].tasks.splice(taskId - 1, 1);
+            saveData();
+            renderPhases();
+        }
+
+        function deletePhase(phaseId) {
+            phasesData.splice(phaseId - 1, 1);
+            saveData();
+            renderPhases();
         }
 
         function updatePhaseStatus(phaseId) {
-            const tasks = document.getElementById(`tasks-${phaseId}`).children;
+            const tasks = phasesData[phaseId - 1].tasks;
             let completedTasks = 0;
-            for (let task of tasks) {
-                const status = document.getElementById(`task-status-${task.id.split('-').pop()}`).value;
-                if (status === 'completed') {
+            tasks.forEach(task => {
+                if (document.getElementById(`task-status-${phaseId}-${tasks.indexOf(task)+1}`).value === 'completed') {
                     completedTasks++;
                 }
-            }
+            });
             const completionPercentage = (tasks.length > 0) ? (completedTasks / tasks.length) * 100 : 0;
-            const phaseStatusDiv = document.getElementById(`phase-status-${phaseId}`);
+            phasesData[phaseId - 1].completion = completionPercentage.toFixed(0);
             let overallStatus = 'Not Started';
             if (completionPercentage > 0 && completionPercentage < 100) {
                 overallStatus = 'In Progress';
             } else if (completionPercentage === 100 && tasks.length > 0) {
-                overallStatus = 'Completed';
-            }
-            phaseStatusDiv.innerHTML = `Status: ${overallStatus}, Completion: ${completionPercentage.toFixed(0)}%`;
-        }
-
-        // Event listeners to update phase status
-        document.addEventListener('change', function(event) {
-            if (event.target.id.startsWith('task-status-')) {
-                const phaseId = event.target.id.split('-')[2];
-                updatePhaseStatus(phaseId);
-            }
-        });
-    </script>
-    <button onclick="addPhase()">Add Phase</button>
-</body>
-</html>
+                overallStatus
